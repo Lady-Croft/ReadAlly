@@ -57,7 +57,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
                 className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 text-brand-muted text-[10px] uppercase tracking-widest font-bold rounded-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-400/20 transition-all cursor-pointer"
               >
                 <LogOut size={12} />
-                Terminating Session
+                Log Out
               </button>
             </div>
           </div>
@@ -67,7 +67,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
           <div className="flex gap-4 mb-2">
             <div className="text-center px-6 py-3 bg-brand-paper border border-brand-border rounded-sm">
                <div className="text-[10px] uppercase tracking-widest font-bold text-brand-muted mb-1">Points</div>
-               <div className="text-2xl font-light text-brand-accent tabular-nums">{Math.floor(stats.points)}</div>
+               <div className="text-2xl font-light text-brand-accent tabular-nums">{Math.floor(stats.points || 0)}</div>
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
                  </div>
                  <div>
                     <div className="text-[10px] uppercase tracking-widest text-brand-muted">Points Progress</div>
-                    <div className="text-lg font-light tabular-nums">{Math.floor(stats.points).toLocaleString()} XP</div>
+                    <div className="text-lg font-light tabular-nums">{Math.floor(stats.points || 0).toLocaleString()} XP</div>
                  </div>
               </div>
 
@@ -212,7 +212,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
                  </div>
                  <div>
                     <div className="text-[10px] uppercase tracking-widest text-brand-muted">Books Finished</div>
-                    <div className="text-lg font-light tabular-nums">{stats.totalBooksCompleted} Volumes</div>
+                    <div className="text-lg font-light tabular-nums">{(stats.totalBooksCompleted || 0)} Volumes</div>
                  </div>
               </div>
 
@@ -222,7 +222,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
                  </div>
                  <div>
                     <div className="text-[10px] uppercase tracking-widest text-brand-muted">Total Reading</div>
-                    <div className="text-lg font-light tabular-nums">{stats.totalHoursRead.toFixed(1)} Hours</div>
+                    <div className="text-lg font-light tabular-nums">{(stats.totalHoursRead || 0).toFixed(1)} Hours</div>
                  </div>
               </div>
 
@@ -232,7 +232,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
                  </div>
                  <div>
                     <div className="text-[10px] uppercase tracking-widest text-brand-muted">Daily Streak</div>
-                    <div className="text-lg font-light tabular-nums">{stats.currentStreak} Days</div>
+                    <div className="text-lg font-light tabular-nums">{(stats.currentStreak || 0)} Days</div>
                  </div>
               </div>
            </div>
@@ -247,6 +247,14 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
                 Keep building your ivory tower of knowledge.
               </p>
            </div>
+
+           <button 
+             onClick={handleLogout}
+             className="w-full mt-8 flex items-center justify-center gap-3 py-4 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 text-red-400 rounded-sm transition-all group"
+           >
+              <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+              <span className="text-xs uppercase tracking-[0.3em] font-bold">Terminate Session</span>
+           </button>
         </div>
       </div>
     </div>

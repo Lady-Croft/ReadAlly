@@ -49,3 +49,11 @@ export interface Quiz {
   bookId: string;
   questions: QuizQuestion[];
 }
+
+export interface LeaderboardEntry {
+  name: string;
+  points: number;
+  avatar: string;
+  rankText: string;
+  isMe?: boolean;
+}

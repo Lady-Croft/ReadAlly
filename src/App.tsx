@@ -15,7 +15,7 @@ import { Reader } from './components/Reader';
 import { Profile } from './components/Profile';
 import { AdminPortal } from './components/AdminPortal';
 import { SearchPortal } from './components/SearchPortal';
-import { Book, ReadingSession, UserStats, QuizQuestion } from './types';
+import { Book, ReadingSession, UserStats, QuizQuestion, LeaderboardEntry } from './types';
 import { cn } from './lib/utils';
 import { format } from 'date-fns';
 import { supabase } from './lib/supabase';
@@ -23,68 +23,7 @@ import { Auth } from './components/Auth';
 import { generateQuiz, generateBookChapters, generateNextChapter } from './lib/gemini';
 import { Session } from '@supabase/supabase-js';
 
-const INITIAL_BOOKS: Book[] = [
-  {
-    id: '1',
-    title: 'Meditations',
-    author: 'Marcus Aurelius',
-    totalPages: 180,
-    currentPage: 0,
-    status: 'reading',
-    genre: 'Philosophy',
-    addedAt: Date.now(),
-    coverUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&q=80&w=200&h=300',
-    chapters: [
-      { 
-        title: 'Book II', 
-        content: `Begin the morning by saying to thyself, I shall meet with the busybody, the ungrateful, arrogant, deceitful, envious, unsocial. All these things happen to them by reason of their ignorance of what is good and evil. But I who have seen the nature of the good that it is beautiful, and of the bad that it is ugly, and of the nature of him who does wrong, that it is akin to me, not only of the same blood or seed, but that it participates in the same intelligence and the same portion of the divinity, I can neither be injured by any of them, for no one can fix on me what is ugly, nor can I be angry with my kinsman, nor hate him. For we are made for co-operation, like feet, like hands, like eyelids, like the rows of the upper and lower teeth. To act against one another then is contrary to nature; and it is acting against one another to be vexed and to turn away.\n\nWhatever this is that I am, it is a little flesh and breath, and the ruling part. Throw away thy books; no longer distract thyself: it is not allowed; but as if thou wast now dying, despise the flesh; it is corruption and blood and a network of nerves and veins, of arteries. See also what breath is, a windy puff, and not always the same, but every moment sent out and again sucked in. The third then is the ruling part: consider thus: Thou art an old man; no longer let this be a slave, no longer be pulled by the strings like a puppet to unsocial movements, no longer either be dissatisfied with thy present lot, or shrink from the future.` 
-      },
-      {
-        title: 'Book III',
-        content: `We ought to observe also that even the things which follow after the things which are produced according to nature contain something pleasing and attractive. For instance, when bread is baked some parts are split at the surface, and these parts which thus open, and have a certain fashion contrary to the purpose of the baker's art, are beautiful in a manner, and in a peculiar way excite a desire for eating. And again, figs, when they are quite ripe, gape open; and in the ripe olives the very circumstance of their being near to rottenness adds a peculiar beauty to the fruit. And the ears of corn bending down, and the lion's eyebrows, and the foam which flows from the mouth of wild boars, and many other things—though they are far from being beautiful, if a man should examine them severally—still, because they follow the things which are formed by nature, help to adorn them, and they please the mind; so that if a man should have a feeling and deeper insight with respect to the things which are produced in the universe, there is hardly one of those which follow by way of consequence which will not seem to him to be in a manner disposed so as to give pleasure.`
-      }
-    ]
-  },
-  {
-    id: '2',
-    title: 'A Brief History of Time',
-    author: 'Stephen Hawking',
-    totalPages: 212,
-    currentPage: 45,
-    status: 'reading',
-    genre: 'Science',
-    addedAt: Date.now() - 1000 * 60 * 60 * 24 * 5,
-    lastReadAt: Date.now() - 1000 * 60 * 60 * 2,
-    coverUrl: 'https://images.unsplash.com/photo-1614728263952-84ea256f9679?auto=format&fit=crop&q=80&w=200&h=300',
-    chapters: [
-      { 
-        title: 'Chapter 1: Our Picture of the Universe', 
-        content: `A well-known scientist (some say it was Bertrand Russell) once gave a public lecture on astronomy. He described how the earth orbits around the sun and how the sun, in turn, orbits around the center of a vast collection of stars called our galaxy. At the end of the lecture, a little old lady at the back of the room stood up and said: "What you have told us is rubbish. The world is really a flat plate supported on the back of a giant tortoise." The scientist gave a superior smile before replying, "What is the tortoise standing on?" "You're very clever, young man, very clever," said the old lady. "But it's turtles all the way down!"\n\nMost people would find the picture of our universe as an infinite tower of tortoises rather ridiculous, but why do we think we know better? What do we know about the universe, and how do we know it? Where did the universe come from, and where is it going? Did the universe have a beginning, and if so, what happened before then? What is the nature of time? Will it ever come to an end? Recent breakthroughs in physics, made possible in part by fantastic new technologies, suggest answers to some of these longstanding questions. Someday these answers may seem as obvious to us as the earth orbiting the sun - or perhaps as ridiculous as a tower of tortoises. Only time (whatever that may be) will tell.` 
-      },
-      { 
-        title: 'Chapter 2: Space and Time', 
-        content: 'Our present ideas about the motion of bodies date back to Galileo and Newton. Before them people believed Aristotle, who said that the natural state of a body was to be at rest and that it moved only if driven by a force or impulse. It followed that a heavy body should fall faster than a light one, because it would have a greater pull toward the earth. The Aristotelian tradition also held that one could work out all the laws that govern the universe by pure thought: it was not necessary to check by observation. So no one until Galileo ever bothered to see whether bodies of different weight did actually fall at different speeds.' 
-      }
-    ]
-  },
-  {
-    id: '3',
-    title: 'Beyond Good and Evil',
-    author: 'Friedrich Nietzsche',
-    totalPages: 240,
-    currentPage: 0,
-    status: 'queue',
-    genre: 'Philosophy',
-    addedAt: Date.now(),
-    coverUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=200&h=300',
-    chapters: [
-      {
-        title: 'Chapter I: Prejudices of Philosophers',
-        content: `The Will to Truth, which is to tempt us to many a hazardous enterprise, the famous Truthfulness of which all philosophers have hitherto spoken with veneration, what questions has this Will to Truth not laid before us! What strange, perplexing, questionable questions! It is already a long story; yet it seems as if it were hardly begun. Is it any wonder if we at last grow distrustful, lose patience, and turn impatiently away? That this Sphinx teaches us at last to ask questions ourselves, who is it really that puts questions to us here? What really is this "Will to Truth" in us? In fact we made a long halt at the question as to the origin of this Will—until at last we came to an absolute standstill before a yet more fundamental question. We inquired about the value of this Will. Granted that we want the truth: why not rather untruth? And uncertainty? Even ignorance? The problem of the value of truth presented itself before us—or was it we who presented ourselves before the problem? Which of us is the Oedipus here? Which the Sphinx? It would seem to be a rendezvous of questions and notes of interrogation.`
-      }
-    ]
-  }
-];
+const INITIAL_BOOKS: Book[] = [];
 
 const RECOMMENDED_BOOKS: Book[] = [
   {
@@ -156,17 +95,17 @@ const RECOMMENDED_BOOKS: Book[] = [
 
 const INITIAL_STATS: UserStats = {
   dailyGoalMinutes: 30,
-  currentStreak: 4,
-  totalHoursRead: 12.5,
-  totalBooksCompleted: 1,
-  points: 750,
+  currentStreak: 0,
+  totalHoursRead: 0,
+  totalBooksCompleted: 0,
+  points: 0,
   profile: {
-    name: 'Olufunmi K.',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olufunmi&backgroundColor=14161c',
-    bio: 'Avid reader and explorer of hidden histories. Always looking for the next scholarly adventure.',
-    joinedAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
-    rank: 'Scholar',
-    isAdmin: true
+    name: 'New Scholar',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Archivist&backgroundColor=14161c',
+    bio: 'Commencing the scholarly journey into the digital archives.',
+    joinedAt: Date.now(),
+    rank: 'Initiate',
+    isAdmin: false
   }
 };
 
@@ -183,6 +122,7 @@ export default function App() {
     const saved = localStorage.getItem('readally_stats');
     return saved ? JSON.parse(saved) : INITIAL_STATS;
   });
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'library' | 'timer' | 'profile' | 'admin'>('dashboard');
   const [session, setSession] = useState<Session | null>(null);
@@ -204,18 +144,170 @@ export default function App() {
   const [pendingSession, setPendingSession] = useState<{ duration: number; pages: number } | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('readally_books', JSON.stringify(books));
-    localStorage.setItem('readally_sessions', JSON.stringify(sessions));
-    localStorage.setItem('readally_stats', JSON.stringify(stats));
-  }, [books, sessions, stats]);
+    if (session) {
+      localStorage.setItem('readally_books', JSON.stringify(books));
+      localStorage.setItem('readally_sessions', JSON.stringify(sessions));
+      localStorage.setItem('readally_stats', JSON.stringify(stats));
+      
+      // Update profile in background - added error handling to prevent silent sync failures
+      supabase.from('profiles').update({
+        daily_goal_minutes: stats.dailyGoalMinutes,
+        current_streak: stats.currentStreak,
+        total_hours_read: stats.totalHoursRead,
+        total_books_completed: stats.totalBooksCompleted,
+        points: stats.points,
+        name: stats.profile?.name,
+        bio: stats.profile?.bio,
+        avatar: stats.profile?.avatar
+      }).eq('id', session.user.id).then();
+    }
+  }, [books, sessions, stats, session]);
+
+  const syncUserData = async (currentSession: Session | null) => {
+    if (!currentSession) {
+      setBooks(INITIAL_BOOKS);
+      setSessions([]);
+      setStats(INITIAL_STATS);
+      return;
+    }
+
+    try {
+      // Fetch Profile/Stats
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentSession.user.id)
+        .single();
+      
+      if (profileData) {
+        setStats({
+          dailyGoalMinutes: profileData.daily_goal_minutes,
+          currentStreak: profileData.current_streak,
+          totalHoursRead: profileData.total_hours_read,
+          totalBooksCompleted: profileData.total_books_completed,
+          points: profileData.points,
+          profile: {
+            name: profileData.name,
+            avatar: profileData.avatar,
+            bio: profileData.bio,
+            joinedAt: new Date(profileData.created_at).getTime(),
+            rank: profileData.rank,
+            isAdmin: profileData.is_admin
+          }
+        });
+      } else if (profileError?.code === 'PGRST116') {
+        // Profile not found - Create initial profile
+        try {
+          const newProfile = {
+            id: currentSession.user.id,
+            name: currentSession.user.email?.split('@')[0] || 'Scholar',
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentSession.user.id}&backgroundColor=14161c`,
+            bio: 'A new scholar in the archives.',
+            daily_goal_minutes: 30,
+            current_streak: 0,
+            total_hours_read: 0,
+            total_books_completed: 0,
+            points: 0,
+            rank: 'Initiate'
+          };
+          await supabase.from('profiles').insert(newProfile);
+          setStats({
+            ...INITIAL_STATS,
+            profile: {
+              ...INITIAL_STATS.profile!,
+              name: newProfile.name,
+              avatar: newProfile.avatar,
+              joinedAt: Date.now()
+            }
+          });
+        } catch (insertErr) {
+          console.error("Failed to create profile:", insertErr);
+        }
+      }
+
+      // Fetch Books
+      try {
+        const { data: booksData } = await supabase
+          .from('books')
+          .select('*')
+          .eq('user_id', currentSession.user.id);
+        
+        if (booksData && booksData.length > 0) {
+          setBooks(booksData.map(b => ({
+            id: b.id,
+            title: b.title,
+            author: b.author,
+            totalPages: b.total_pages,
+            currentPage: b.current_page,
+            coverUrl: b.cover_url,
+            status: b.status,
+            addedAt: new Date(b.created_at).getTime(),
+            genre: b.genre,
+            chapters: b.chapters
+          })));
+        }
+      } catch (e) { console.error("Books fetch failed:", e); }
+
+      // Fetch Sessions
+      try {
+        const { data: sessionsData } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('user_id', currentSession.user.id);
+        
+        if (sessionsData) {
+          setSessions(sessionsData.map(s => ({
+            id: s.id,
+            bookId: s.book_id,
+            startTime: new Date(s.start_time).getTime(),
+            durationSeconds: s.duration_seconds,
+            pages_read: s.pages_read
+          })));
+        }
+      } catch (e) { console.error("Sessions fetch failed:", e); }
+
+      // Fetch Leaderboard (Real Users)
+      try {
+        const { data: leaderboardData } = await supabase
+          .from('profiles')
+          .select('id, name, points, avatar, rank')
+          .order('points', { ascending: false })
+          .limit(10);
+        
+        if (leaderboardData) {
+          setLeaderboard(leaderboardData.map(p => ({
+            name: p.name || 'Anonymous Scholar',
+            points: p.points || 0,
+            avatar: p.avatar,
+            rankText: p.rank || 'Initiate',
+            isMe: currentSession.user.id === p.id
+          })));
+        }
+      } catch (e) { console.error("Leaderboard fetch failed:", e); }
+    } catch (err) {
+      console.error("User data sync failed:", err);
+    }
+  };
 
   useEffect(() => {
+    // Check for a hidden "reset" flag to help return to signup and wipe local data
+    if (window.location.search.includes('reset=true')) {
+      localStorage.removeItem('readally_books');
+      localStorage.removeItem('readally_sessions');
+      localStorage.removeItem('readally_stats');
+      supabase.auth.signOut().then(() => {
+        window.location.href = window.location.pathname;
+      });
+    }
+
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        if (currentSession) await syncUserData(currentSession);
       } catch (err) {
         console.error("Auth initialization failed:", err);
+        setSession(null);
       } finally {
         setAuthLoading(false);
       }
@@ -225,13 +317,15 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      setSession(newSession);
+      if (newSession) await syncUserData(newSession);
       setAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+;
 
   if (authLoading) {
     return (
@@ -247,14 +341,30 @@ export default function App() {
 
   const activeBook = books.find(b => b.id === activeBookId) || null;
 
-  const handleAddBook = (newBookData: Omit<Book, 'id' | 'addedAt'>) => {
+  const handleAddBook = async (newBookData: Omit<Book, 'id' | 'addedAt'>) => {
+    const bookId = Math.random().toString(36).substr(2, 9);
     const newBook: Book = {
       ...newBookData,
-      id: Math.random().toString(36).substr(2, 9),
+      id: bookId,
       addedAt: Date.now(),
     };
     setBooks(prev => [...prev, newBook]);
     setActiveBookId(newBook.id);
+
+    if (session) {
+      await supabase.from('books').insert({
+        id: bookId,
+        user_id: session.user.id,
+        title: newBookData.title,
+        author: newBookData.author,
+        total_pages: newBookData.totalPages,
+        current_page: 0,
+        status: newBookData.status,
+        cover_url: newBookData.coverUrl,
+        genre: newBookData.genre,
+        chapters: newBookData.chapters
+      });
+    }
   };
 
   const handleAddRecommended = (book: Book) => {
@@ -336,16 +446,17 @@ export default function App() {
     setLoadingQuiz(false);
   };
 
-  const finalizeSession = (durationSeconds: number, pagesRead: number, quizScore: number) => {
-    if (!activeBookId) return;
+  const finalizeSession = async (durationSeconds: number, pagesRead: number, quizScore: number) => {
+    if (!activeBookId || !session) return;
 
     let sessionPoints = Math.floor(durationSeconds / 60) * 10;
     if (quizScore === quizQuestions.length && quizQuestions.length > 0) {
       sessionPoints *= 2; // Double points for 100% score
     }
 
+    const sessionId = Math.random().toString(36).substr(2, 9);
     const newSession: ReadingSession = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: sessionId,
       bookId: activeBookId,
       startTime: Date.now() - durationSeconds * 1000,
       durationSeconds,
@@ -353,16 +464,19 @@ export default function App() {
     };
 
     setSessions(prev => [...prev, newSession]);
-    setBooks(prev => prev.map(book => 
+    
+    // Update local state first
+    const updatedBooks = books.map(book => 
       book.id === activeBookId 
         ? { 
             ...book, 
             currentPage: Math.min(book.currentPage + pagesRead, book.totalPages),
-            status: (book.currentPage + (pagesRead || 0)) >= book.totalPages ? 'completed' : 'reading',
+            status: (book.currentPage + (pagesRead || 0)) >= book.totalPages ? 'completed' as const : 'reading' as const,
             lastReadAt: Date.now()
           } 
         : book
-    ));
+    );
+    setBooks(updatedBooks);
 
     setStats(prev => ({
       ...prev,
@@ -370,6 +484,26 @@ export default function App() {
       points: prev.points + sessionPoints,
       totalBooksCompleted: prev.totalBooksCompleted + (activeBook && (activeBook.currentPage + pagesRead >= activeBook.totalPages) ? 1 : 0),
     }));
+
+    // Persist session to Supabase
+    await supabase.from('sessions').insert({
+      id: sessionId,
+      user_id: session.user.id,
+      book_id: activeBookId,
+      duration_seconds: durationSeconds,
+      pages_read: pagesRead,
+      start_time: new Date(newSession.startTime).toISOString()
+    });
+
+    // Update book progress in Supabase
+    const updatedBook = updatedBooks.find(b => b.id === activeBookId);
+    if (updatedBook) {
+      await supabase.from('books').update({
+        current_page: updatedBook.currentPage,
+        status: updatedBook.status,
+        last_read_at: new Date(updatedBook.lastReadAt!).toISOString()
+      }).eq('id', activeBookId);
+    }
 
     setIsQuizMode(false);
     setPendingSession(null);
@@ -449,7 +583,7 @@ export default function App() {
                   Read<span className="text-brand-accent">Ally</span>
                 </h1>
                 <p className="text-brand-muted font-medium text-[10px] uppercase tracking-[0.25em] mt-1">
-                  Mastering your library — Points: <span className="text-brand-accent">{Math.floor(stats.points)}</span>
+                  Mastering your library — Points: <span className="text-brand-accent">{Math.floor(stats.points || 0)}</span>
                 </p>
              </div>
           </div>
@@ -509,6 +643,7 @@ export default function App() {
                   stats={stats} 
                   sessions={sessions} 
                   activeBook={activeBook}
+                  leaderboard={leaderboard}
                   onResumeReading={() => activeBook && handleOpenReader(activeBook.id)}
                 />
               )}

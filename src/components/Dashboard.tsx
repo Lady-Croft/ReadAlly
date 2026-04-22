@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Flame, Trophy, Calendar, BookOpen, Clock, Star, Users, ArrowUp, ArrowDown } from 'lucide-react';
-import { Book, UserStats, ReadingSession } from '../types';
+import { Book, UserStats, ReadingSession, LeaderboardEntry } from '../types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { cn } from '../lib/utils';
 
@@ -9,28 +9,12 @@ interface DashboardProps {
   stats: UserStats;
   sessions: ReadingSession[];
   activeBook: Book | null;
+  leaderboard: LeaderboardEntry[];
   onResumeReading: () => void;
 }
 
-const LEADERBOARD_DATA = {
-  daily: [
-    { name: 'Sarah J.', points: 1250, rank: 1, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah&backgroundColor=14161c' },
-    { name: 'Julian V.', points: 1100, rank: 2, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Julian&backgroundColor=14161c' },
-    { name: 'Elena R.', points: 950, rank: 3, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Elena&backgroundColor=14161c' },
-    { name: 'You', points: 750, rank: 4, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olufunmi&backgroundColor=14161c', isMe: true },
-    { name: 'Marcus K.', points: 620, rank: 5, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marcus&backgroundColor=14161c' },
-  ],
-  weekly: [
-    { name: 'Julian V.', points: 8400, rank: 1, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Julian&backgroundColor=14161c' },
-    { name: 'Elena R.', points: 7900, rank: 2, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Elena&backgroundColor=14161c' },
-    { name: 'You', points: 5250, rank: 3, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olufunmi&backgroundColor=14161c', isMe: true },
-    { name: 'Sarah J.', points: 4100, rank: 4, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah&backgroundColor=14161c' },
-    { name: 'David W.', points: 3800, rank: 5, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David&backgroundColor=14161c' },
-  ]
-};
-
-export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBook, onResumeReading }) => {
-  const [lbType, setLbType] = useState<'daily' | 'weekly'>('daily');
+export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBook, leaderboard, onResumeReading }) => {
+  const [lbType, setLbType] = useState<'real'>('real');
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = subDays(new Date(), 6 - i);
@@ -44,13 +28,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBoo
   });
 
   const cards = [
-    { label: 'Total Points', value: Math.floor(stats.points), icon: Star, color: 'text-brand-accent' },
-    { label: 'Current Streak', value: `${stats.currentStreak} d`, icon: Flame, color: 'text-brand-accent' },
-    { label: 'Hours Read', value: `${Math.round(stats.totalHoursRead * 10) / 10}h`, icon: Clock, color: 'opacity-60' },
-    { label: 'Completed', value: stats.totalBooksCompleted, icon: Trophy, color: 'opacity-60' },
+    { label: 'Total Points', value: Math.floor(stats.points || 0), icon: Star, color: 'text-brand-accent' },
+    { label: 'Current Streak', value: `${stats.currentStreak || 0} d`, icon: Flame, color: 'text-brand-accent' },
+    { label: 'Hours Read', value: `${Math.round((stats.totalHoursRead || 0) * 10) / 10}h`, icon: Clock, color: 'opacity-60' },
+    { label: 'Completed', value: stats.totalBooksCompleted || 0, icon: Trophy, color: 'opacity-60' },
   ];
-
-  const currentLeaderboard = lbType === 'daily' ? LEADERBOARD_DATA.daily : LEADERBOARD_DATA.weekly;
 
   return (
     <div className="space-y-8">
@@ -106,50 +88,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBoo
         <div className="lg:col-span-5 bg-card p-8 rounded-sm border border-brand-border shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="serif text-xl tracking-widest uppercase font-light opacity-80">Leaderboard</h3>
-              <div className="flex gap-4 mt-2">
-                <button 
-                  onClick={() => setLbType('daily')}
-                  className={cn("text-[9px] uppercase tracking-widest font-bold", lbType === 'daily' ? "text-brand-accent pb-1 border-b border-brand-accent" : "text-brand-muted")}
-                >
-                  Daily
-                </button>
-                <button 
-                  onClick={() => setLbType('weekly')}
-                  className={cn("text-[9px] uppercase tracking-widest font-bold", lbType === 'weekly' ? "text-brand-accent pb-1 border-b border-brand-accent" : "text-brand-muted")}
-                >
-                  Weekly
-                </button>
-              </div>
+              <h3 className="serif text-xl tracking-widest uppercase font-light opacity-80">Top Scholars</h3>
+              <p className="text-brand-muted text-[10px] uppercase tracking-widest mt-1">Real-time standings</p>
             </div>
             <Users size={20} className="text-brand-muted opacity-40" />
           </div>
 
           <div className="space-y-4">
-            {currentLeaderboard.map((user, i) => (
-              <div 
-                key={i} 
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-sm border border-transparent transition-all",
-                  user.isMe ? "bg-brand-accent/5 border-brand-accent/20" : "hover:bg-white/5"
-                )}
-              >
-                <div className="w-6 text-[10px] font-bold text-brand-muted">{user.rank}.</div>
-                <div className="w-8 h-8 rounded-full bg-brand-paper border border-brand-border overflow-hidden">
-                   <img src={user.avatar} alt={user.name} />
-                </div>
-                <div className="flex-1">
-                  <div className={cn("text-xs font-medium", user.isMe ? "text-brand-ink" : "text-brand-ink/80")}>
-                    {user.name} {user.isMe && "(You)"}
-                  </div>
-                  <div className="text-[9px] text-brand-muted uppercase tracking-widest">Master Reader</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-brand-accent">{user.points}</div>
-                  <div className="text-[8px] text-brand-muted uppercase tracking-tighter">Points</div>
-                </div>
+            {leaderboard.length === 0 ? (
+              <div className="py-12 text-center opacity-30 italic text-sm">
+                Awaiting more scholars...
               </div>
-            ))}
+            ) : (
+              leaderboard.map((user, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-sm border border-transparent transition-all",
+                    user.isMe ? "bg-brand-accent/5 border-brand-accent/20" : "hover:bg-white/5"
+                  )}
+                >
+                  <div className="w-6 text-[10px] font-bold text-brand-muted">{i + 1}.</div>
+                  <div className="w-8 h-8 rounded-full bg-brand-paper border border-brand-border overflow-hidden">
+                     <img src={user.avatar} alt={user.name} referrerPolicy="no-referrer" />
+                  </div>
+                  <div className="flex-1">
+                    <div className={cn("text-xs font-medium", user.isMe ? "text-brand-ink" : "text-brand-ink/80")}>
+                      {user.name} {user.isMe && "(You)"}
+                    </div>
+                    <div className="text-[9px] text-brand-muted uppercase tracking-widest">{user.rankText}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-brand-accent">{user.points}</div>
+                    <div className="text-[8px] text-brand-muted uppercase tracking-tighter">Points</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

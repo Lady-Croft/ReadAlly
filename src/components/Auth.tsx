@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { LogIn, UserPlus, Mail, Lock, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 
 export const Auth: React.FC = () => {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
