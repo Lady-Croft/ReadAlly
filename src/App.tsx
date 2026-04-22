@@ -191,6 +191,7 @@ export default function App() {
   const [isVisualizerOpen, setIsVisualizerOpen] = useState(false);
   const [selectedVisualText, setSelectedVisualText] = useState('');
   const [isReaderOpen, setIsReaderOpen] = useState(false);
+  const [digitizingBookId, setDigitizingBookId] = useState<string | null>(null);
 
   // Tracking for reading session within reader
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
@@ -263,8 +264,6 @@ export default function App() {
     setActiveBookId(newBook.id);
     handleOpenReader(newBook.id);
   };
-
-  const [digitizingBookId, setDigitizingBookId] = useState<string | null>(null);
 
   const handleDigitize = async (bookId: string) => {
     const book = books.find(b => b.id === bookId);
