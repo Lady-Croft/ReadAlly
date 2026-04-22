@@ -5,7 +5,7 @@ import { Book } from '../types';
 import * as pdfjs from 'pdfjs-dist';
 
 // Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface AdminPortalProps {
   onAddBook: (book: Book) => void;

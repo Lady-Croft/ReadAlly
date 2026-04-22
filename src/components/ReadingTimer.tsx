@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Square, Timer as TimerIcon, Image as ImageIcon, Book as BookIcon } from 'lucide-react';
+import { Play, Pause, Square, Timer as TimerIcon, Image as ImageIcon, Book as BookIcon, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDuration } from '../lib/utils';
 import { Book } from '../types';

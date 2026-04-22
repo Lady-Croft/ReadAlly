@@ -1,15 +1,20 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Trophy, Book as BookIcon, Target, Award, Calendar, Bookmark, CheckCircle, Clock } from 'lucide-react';
+import { Trophy, Book as BookIcon, Target, Award, Calendar, Bookmark, CheckCircle, Clock, LogOut } from 'lucide-react';
 import { Book, UserStats } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface ProfileProps {
   stats: UserStats;
   books: Book[];
   onSelectBook: (book: Book) => void;
+  userEmail?: string;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook }) => {
+export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, userEmail }) => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
   const completedBooks = books.filter(b => b.status === 'completed');
   const savedBooks = books.filter(b => b.status === 'wishlist' || b.status === 'queue');
   const currentlyReading = books.filter(b => b.status === 'reading');
@@ -41,12 +46,21 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook }) 
           </div>
           
           <div className="flex-1 text-center md:text-left mb-2">
-            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-2">
-              <h1 className="serif text-3xl font-light tracking-tight">{user.name}</h1>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-2">
+            <h1 className="serif text-3xl font-light tracking-tight">{userEmail || user.name}</h1>
+            <div className="flex gap-2">
               <span className="inline-block px-3 py-1 bg-brand-accent/10 border border-brand-accent/20 text-brand-accent text-[10px] uppercase tracking-widest font-bold rounded-sm">
                 {user.rank}
               </span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 text-brand-muted text-[10px] uppercase tracking-widest font-bold rounded-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-400/20 transition-all cursor-pointer"
+              >
+                <LogOut size={12} />
+                Terminating Session
+              </button>
             </div>
+          </div>
             <p className="text-brand-muted text-sm serif italic max-w-md">{user.bio}</p>
           </div>
           

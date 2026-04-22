@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Library as LibraryIcon, Timer as TimerIcon, Settings, Github, BookOpen, User as UserIcon, Shield, Search } from 'lucide-react';
+import { LayoutDashboard, Library as LibraryIcon, Timer as TimerIcon, Settings, Github, BookOpen, User as UserIcon, Shield, Search, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Dashboard } from './components/Dashboard';
 import { Library } from './components/Library';
@@ -18,7 +18,10 @@ import { SearchPortal } from './components/SearchPortal';
 import { Book, ReadingSession, UserStats, QuizQuestion } from './types';
 import { cn } from './lib/utils';
 import { format } from 'date-fns';
+import { supabase } from './lib/supabase';
+import { Auth } from './components/Auth';
 import { generateQuiz, generateBookChapters, generateNextChapter } from './lib/gemini';
+import { Session } from '@supabase/supabase-js';
 
 const INITIAL_BOOKS: Book[] = [
   {
@@ -182,6 +185,8 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'library' | 'timer' | 'profile' | 'admin'>('dashboard');
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeBookId, setActiveBookId] = useState<string | undefined>(books.find(b => b.status === 'reading')?.id);
   const [isVisualizerOpen, setIsVisualizerOpen] = useState(false);
   const [selectedVisualText, setSelectedVisualText] = useState('');
@@ -202,6 +207,42 @@ export default function App() {
     localStorage.setItem('readally_sessions', JSON.stringify(sessions));
     localStorage.setItem('readally_stats', JSON.stringify(stats));
   }, [books, sessions, stats]);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (err) {
+        console.error("Auth initialization failed:", err);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center">
+        <Loader2 className="animate-spin text-brand-accent" size={32} />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
 
   const activeBook = books.find(b => b.id === activeBookId) || null;
 
@@ -517,6 +558,7 @@ export default function App() {
                 <Profile 
                   stats={stats} 
                   books={books} 
+                  userEmail={session?.user?.email}
                   onSelectBook={(book) => {
                     if (book.chapters) {
                       handleOpenReader(book.id);
