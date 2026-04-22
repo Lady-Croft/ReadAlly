@@ -49,3 +49,12 @@
 
 .markdown-body h1 { @apply text-2xl font-serif mb-4 text-brand-accent; }
 .markdown-body p { @apply mb-3 leading-relaxed opacity-80; }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

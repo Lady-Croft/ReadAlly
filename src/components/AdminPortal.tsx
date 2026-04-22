@@ -11,9 +11,10 @@ interface AdminPortalProps {
   onAddBook: (book: Book) => void;
   existingBooks: Book[];
   onDeleteBook: (id: string) => void;
+  onResetLibrary: () => Promise<void>;
 }
 
-export const AdminPortal: React.FC<AdminPortalProps> = ({ onAddBook, existingBooks, onDeleteBook }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({ onAddBook, existingBooks, onDeleteBook, onResetLibrary }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [extractedText, setExtractedText] = useState('');
   const [bookData, setBookData] = useState({
@@ -245,10 +246,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onAddBook, existingBoo
               <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
                 <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-brand-accent">Master Archives</h4>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm('Are you sure you want to restore the library to its default state? All custom uploads will be lost.')) {
-                      localStorage.removeItem('readally_books');
-                      window.location.reload();
+                      await onResetLibrary();
                     }
                   }}
                   className="text-[8px] uppercase tracking-widest text-brand-muted hover:text-red-400 transition-colors"

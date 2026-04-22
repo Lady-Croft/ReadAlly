@@ -53,6 +53,12 @@ export const SearchPortal: React.FC<SearchPortalProps> = ({ onAddBook, existingB
       <div className="mb-12 border-b border-brand-border pb-8">
         <h1 className="serif text-4xl mb-2">Universal Archive</h1>
         <p className="text-brand-muted text-xs uppercase tracking-widest font-bold">Discovery • Global Catalog Search</p>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-sm border border-brand-accent/40 bg-brand-accent/10 px-3 py-2">
+          <Sparkles size={12} className="text-brand-accent" />
+          <span className="text-[10px] uppercase tracking-widest font-bold text-brand-accent">
+            AI-generated book entries
+          </span>
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="relative mb-12">
@@ -109,6 +115,10 @@ export const SearchPortal: React.FC<SearchPortalProps> = ({ onAddBook, existingB
                         <div className="flex items-center gap-2 mb-2">
                            <Tag size={10} className="text-brand-accent" />
                            <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-brand-accent">{book.genre}</span>
+                        </div>
+                        <div className="mb-2 inline-flex items-center gap-1.5 rounded-sm border border-brand-border px-2 py-1">
+                          <Sparkles size={10} className="text-brand-accent" />
+                          <span className="text-[9px] uppercase tracking-widest text-brand-muted">AI generated</span>
                         </div>
                         <h3 className="serif text-xl mb-1 truncate">{book.title}</h3>
                         <p className="text-brand-muted text-[10px] uppercase tracking-widest mb-4 italic">{book.author}</p>

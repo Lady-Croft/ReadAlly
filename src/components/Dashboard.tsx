@@ -4,6 +4,7 @@ import { Flame, Trophy, Calendar, BookOpen, Clock, Star, Users, ArrowUp, ArrowDo
 import { Book, UserStats, ReadingSession, LeaderboardEntry } from '../types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { cn } from '../lib/utils';
+import { calculateBaseSessionPoints } from '../lib/scoring';
 
 interface DashboardProps {
   stats: UserStats;
@@ -15,6 +16,7 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBook, leaderboard, onResumeReading }) => {
   const [lbType, setLbType] = useState<'real'>('real');
+  const today = new Date();
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = subDays(new Date(), 6 - i);
@@ -26,6 +28,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBoo
       date,
     };
   });
+
+  const todaysSessions = sessions.filter(s => isSameDay(new Date(s.startTime), today));
+  const todaysSeconds = todaysSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
+  const todaysPoints = calculateBaseSessionPoints(todaysSeconds);
+  const activityLabel =
+    todaysSessions.length > 0
+      ? `You've earned ${todaysPoints} point${todaysPoints === 1 ? '' : 's'} today across ${todaysSessions.length} session${todaysSessions.length === 1 ? '' : 's'}. Keep reading to climb the leaderboard.`
+      : 'Start a reading session to earn points and climb the leaderboard.';
 
   const cards = [
     { label: 'Total Points', value: Math.floor(stats.points || 0), icon: Star, color: 'text-brand-accent' },
@@ -138,7 +148,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, sessions, activeBoo
               <div>
                  <h4 className="serif italic text-lg mb-1 opacity-90">Ready for a rank up?</h4>
                  <p className="text-brand-muted text-xs uppercase tracking-widest leading-relaxed">
-                   You've earned <span className="text-brand-accent font-bold">120 points</span> this session. Read more to climb the leaderboard.
+                   {todaysSessions.length > 0 ? (
+                     <>
+                       You've earned <span className="text-brand-accent font-bold">{todaysPoints} point{todaysPoints === 1 ? '' : 's'}</span> today across {todaysSessions.length} session{todaysSessions.length === 1 ? '' : 's'}. Keep reading to climb the leaderboard.
+                     </>
+                   ) : (
+                     activityLabel
+                   )}
                  </p>
               </div>
            </div>

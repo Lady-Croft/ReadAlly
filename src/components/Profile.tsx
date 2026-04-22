@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Trophy, Book as BookIcon, Target, Award, Calendar, Bookmark, CheckCircle, Clock, LogOut } from 'lucide-react';
 import { Book, UserStats } from '../types';
 import { supabase } from '../lib/supabase';
+import { getRankFromPoints } from '../lib/scoring';
 
 interface ProfileProps {
   stats: UserStats;
@@ -15,6 +16,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+  const currentRank = getRankFromPoints(stats.points || 0);
   const completedBooks = books.filter(b => b.status === 'completed');
   const savedBooks = books.filter(b => b.status === 'wishlist' || b.status === 'queue');
   const currentlyReading = books.filter(b => b.status === 'reading');
@@ -50,7 +52,7 @@ export const Profile: React.FC<ProfileProps> = ({ stats, books, onSelectBook, us
             <h1 className="serif text-3xl font-light tracking-tight">{userEmail || user.name}</h1>
             <div className="flex gap-2">
               <span className="inline-block px-3 py-1 bg-brand-accent/10 border border-brand-accent/20 text-brand-accent text-[10px] uppercase tracking-widest font-bold rounded-sm">
-                {user.rank}
+                {currentRank}
               </span>
               <button
                 onClick={handleLogout}

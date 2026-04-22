@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, Library as LibraryIcon, Timer as TimerIcon, Settings, Github, BookOpen, User as UserIcon, Shield, Search, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Dashboard } from './components/Dashboard';
@@ -22,6 +22,7 @@ import { supabase } from './lib/supabase';
 import { Auth } from './components/Auth';
 import { generateQuiz, generateBookChapters, generateNextChapter } from './lib/gemini';
 import { Session } from '@supabase/supabase-js';
+import { calculateBaseSessionPoints, calculateSessionPoints, getRankFromPoints } from './lib/scoring';
 
 const INITIAL_BOOKS: Book[] = [];
 
@@ -110,18 +111,9 @@ const INITIAL_STATS: UserStats = {
 };
 
 export default function App() {
-  const [books, setBooks] = useState<Book[]>(() => {
-    const saved = localStorage.getItem('readally_books');
-    return saved ? JSON.parse(saved) : INITIAL_BOOKS;
-  });
-  const [sessions, setSessions] = useState<ReadingSession[]>(() => {
-    const saved = localStorage.getItem('readally_sessions');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [stats, setStats] = useState<UserStats>(() => {
-    const saved = localStorage.getItem('readally_stats');
-    return saved ? JSON.parse(saved) : INITIAL_STATS;
-  });
+  const [books, setBooks] = useState<Book[]>(INITIAL_BOOKS);
+  const [sessions, setSessions] = useState<ReadingSession[]>([]);
+  const [stats, setStats] = useState<UserStats>(INITIAL_STATS);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'library' | 'timer' | 'profile' | 'admin'>('dashboard');
@@ -142,13 +134,12 @@ export default function App() {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [pendingSession, setPendingSession] = useState<{ duration: number; pages: number } | null>(null);
+  const hasBootstrappedAuthRef = useRef(false);
+  const activeSyncUserIdRef = useRef<string | null>(null);
+  const currentSessionUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (session) {
-      localStorage.setItem('readally_books', JSON.stringify(books));
-      localStorage.setItem('readally_sessions', JSON.stringify(sessions));
-      localStorage.setItem('readally_stats', JSON.stringify(stats));
-      
       // Update profile in background - added error handling to prevent silent sync failures
       supabase.from('profiles').update({
         daily_goal_minutes: stats.dailyGoalMinutes,
@@ -156,28 +147,36 @@ export default function App() {
         total_hours_read: stats.totalHoursRead,
         total_books_completed: stats.totalBooksCompleted,
         points: stats.points,
+        rank: getRankFromPoints(stats.points || 0),
         name: stats.profile?.name,
         bio: stats.profile?.bio,
         avatar: stats.profile?.avatar
       }).eq('id', session.user.id).then();
     }
-  }, [books, sessions, stats, session]);
+  }, [stats, session]);
 
   const syncUserData = async (currentSession: Session | null) => {
+    const syncStartedAt = performance.now();
+    console.groupCollapsed('[ReadAlly] syncUserData');
     if (!currentSession) {
+      console.log('No session found, resetting in-memory state');
       setBooks(INITIAL_BOOKS);
       setSessions([]);
       setStats(INITIAL_STATS);
+      console.log(`syncUserData finished in ${(performance.now() - syncStartedAt).toFixed(1)}ms`);
+      console.groupEnd();
       return;
     }
 
     try {
       // Fetch Profile/Stats
+      const profileStartedAt = performance.now();
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentSession.user.id)
         .single();
+      console.log(`Profile fetch took ${(performance.now() - profileStartedAt).toFixed(1)}ms`);
       
       if (profileData) {
         setStats({
@@ -191,7 +190,7 @@ export default function App() {
             avatar: profileData.avatar,
             bio: profileData.bio,
             joinedAt: new Date(profileData.created_at).getTime(),
-            rank: profileData.rank,
+            rank: getRankFromPoints(profileData.points || 0),
             isAdmin: profileData.is_admin
           }
         });
@@ -227,89 +226,106 @@ export default function App() {
 
       // Fetch Books
       try {
+        const booksStartedAt = performance.now();
         const { data: booksData } = await supabase
           .from('books')
           .select('*')
           .eq('user_id', currentSession.user.id);
+        console.log(`Books fetch took ${(performance.now() - booksStartedAt).toFixed(1)}ms`);
         
-        if (booksData && booksData.length > 0) {
-          setBooks(booksData.map(b => ({
-            id: b.id,
-            title: b.title,
-            author: b.author,
-            totalPages: b.total_pages,
-            currentPage: b.current_page,
-            coverUrl: b.cover_url,
-            status: b.status,
-            addedAt: new Date(b.created_at).getTime(),
-            genre: b.genre,
-            chapters: b.chapters
-          })));
-        }
+        setBooks((booksData || []).map(b => ({
+          id: b.id,
+          title: b.title,
+          author: b.author,
+          totalPages: b.total_pages,
+          currentPage: b.current_page,
+          coverUrl: b.cover_url,
+          status: b.status,
+          addedAt: new Date(b.created_at).getTime(),
+          genre: b.genre,
+          chapters: b.chapters
+        })));
       } catch (e) { console.error("Books fetch failed:", e); }
 
       // Fetch Sessions
       try {
+        const sessionsStartedAt = performance.now();
         const { data: sessionsData } = await supabase
           .from('sessions')
           .select('*')
           .eq('user_id', currentSession.user.id);
+        console.log(`Sessions fetch took ${(performance.now() - sessionsStartedAt).toFixed(1)}ms`);
         
-        if (sessionsData) {
-          setSessions(sessionsData.map(s => ({
-            id: s.id,
-            bookId: s.book_id,
-            startTime: new Date(s.start_time).getTime(),
-            durationSeconds: s.duration_seconds,
-            pages_read: s.pages_read
-          })));
-        }
+        setSessions((sessionsData || []).map(s => ({
+          id: s.id,
+          bookId: s.book_id,
+          startTime: new Date(s.start_time).getTime(),
+          durationSeconds: s.duration_seconds,
+          pagesRead: s.pages_read
+        })));
       } catch (e) { console.error("Sessions fetch failed:", e); }
 
       // Fetch Leaderboard (Real Users)
       try {
+        const leaderboardStartedAt = performance.now();
         const { data: leaderboardData } = await supabase
           .from('profiles')
           .select('id, name, points, avatar, rank')
           .order('points', { ascending: false })
           .limit(10);
+        console.log(`Leaderboard fetch took ${(performance.now() - leaderboardStartedAt).toFixed(1)}ms`);
         
         if (leaderboardData) {
           setLeaderboard(leaderboardData.map(p => ({
             name: p.name || 'Anonymous Scholar',
             points: p.points || 0,
             avatar: p.avatar,
-            rankText: p.rank || 'Initiate',
+            rankText: getRankFromPoints(p.points || 0),
             isMe: currentSession.user.id === p.id
           })));
         }
       } catch (e) { console.error("Leaderboard fetch failed:", e); }
     } catch (err) {
       console.error("User data sync failed:", err);
+    } finally {
+      console.log(`syncUserData total ${(performance.now() - syncStartedAt).toFixed(1)}ms`);
+      console.groupEnd();
     }
   };
 
   useEffect(() => {
-    // Check for a hidden "reset" flag to help return to signup and wipe local data
+    // Check for a hidden "reset" flag to help return to signup
     if (window.location.search.includes('reset=true')) {
-      localStorage.removeItem('readally_books');
-      localStorage.removeItem('readally_sessions');
-      localStorage.removeItem('readally_stats');
       supabase.auth.signOut().then(() => {
         window.location.href = window.location.pathname;
       });
     }
 
     const initAuth = async () => {
+      const initAuthStartedAt = performance.now();
+      console.groupCollapsed('[ReadAlly] initAuth');
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log(`getSession took ${(performance.now() - initAuthStartedAt).toFixed(1)}ms`, { hasSession: !!currentSession });
         setSession(currentSession);
-        if (currentSession) await syncUserData(currentSession);
+        currentSessionUserIdRef.current = currentSession?.user?.id || null;
+        hasBootstrappedAuthRef.current = true;
+        setAuthLoading(false);
+        if (currentSession) {
+          activeSyncUserIdRef.current = currentSession.user.id;
+          syncUserData(currentSession).finally(() => {
+            if (activeSyncUserIdRef.current === currentSession.user.id) {
+              activeSyncUserIdRef.current = null;
+            }
+          });
+        }
       } catch (err) {
         console.error("Auth initialization failed:", err);
         setSession(null);
-      } finally {
         setAuthLoading(false);
+      } finally {
+        console.log(`initAuth total ${(performance.now() - initAuthStartedAt).toFixed(1)}ms`);
+        console.groupEnd();
       }
     };
 
@@ -318,9 +334,42 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      const authChangeStartedAt = performance.now();
+      console.groupCollapsed('[ReadAlly] onAuthStateChange');
+      console.log('event:', _event, 'hasSession:', !!newSession);
+
+      // Ignore duplicate initial event after bootstrap in development StrictMode.
+      if (
+        hasBootstrappedAuthRef.current &&
+        _event === 'INITIAL_SESSION' &&
+        newSession?.user?.id === currentSessionUserIdRef.current
+      ) {
+        console.log('Skipping duplicate INITIAL_SESSION event');
+        setAuthLoading(false);
+        console.log(`onAuthStateChange total ${(performance.now() - authChangeStartedAt).toFixed(1)}ms`);
+        console.groupEnd();
+        return;
+      }
+
       setSession(newSession);
-      if (newSession) await syncUserData(newSession);
+      currentSessionUserIdRef.current = newSession?.user?.id || null;
+
+      if (!newSession) {
+        activeSyncUserIdRef.current = null;
+      } else if (activeSyncUserIdRef.current !== newSession.user.id) {
+        activeSyncUserIdRef.current = newSession.user.id;
+        syncUserData(newSession).finally(() => {
+          if (activeSyncUserIdRef.current === newSession.user.id) {
+            activeSyncUserIdRef.current = null;
+          }
+        });
+      } else {
+        console.log('Skipping duplicate sync for same user');
+      }
+
       setAuthLoading(false);
+      console.log(`onAuthStateChange total ${(performance.now() - authChangeStartedAt).toFixed(1)}ms`);
+      console.groupEnd();
     });
 
     return () => subscription.unsubscribe();
@@ -372,6 +421,20 @@ export default function App() {
     const newBook: Book = { ...book, id: Math.random().toString(36).substr(2, 9), addedAt: Date.now(), isRecommended: false, status: 'reading' };
     setBooks(prev => [...prev, newBook]);
     setActiveBookId(newBook.id);
+    if (session) {
+      supabase.from('books').insert({
+        id: newBook.id,
+        user_id: session.user.id,
+        title: newBook.title,
+        author: newBook.author,
+        total_pages: newBook.totalPages,
+        current_page: newBook.currentPage,
+        status: newBook.status,
+        cover_url: newBook.coverUrl,
+        genre: newBook.genre,
+        chapters: newBook.chapters
+      }).then();
+    }
     handleOpenReader(newBook.id);
   };
 
@@ -387,6 +450,9 @@ export default function App() {
         ? { ...b, chapters: initialChapters } 
         : b
       ));
+      await supabase.from('books').update({
+        chapters: initialChapters
+      }).eq('id', bookId);
     } catch (err) {
       console.error("Digitization failed:", err);
     } finally {
@@ -410,6 +476,9 @@ export default function App() {
          ? { ...b, chapters: initialChapters } 
          : b
        ));
+       await supabase.from('books').update({
+        chapters: initialChapters
+       }).eq('id', bookId);
     }
   };
 
@@ -449,10 +518,8 @@ export default function App() {
   const finalizeSession = async (durationSeconds: number, pagesRead: number, quizScore: number) => {
     if (!activeBookId || !session) return;
 
-    let sessionPoints = Math.floor(durationSeconds / 60) * 10;
-    if (quizScore === quizQuestions.length && quizQuestions.length > 0) {
-      sessionPoints *= 2; // Double points for 100% score
-    }
+    const isPerfectQuiz = quizScore === quizQuestions.length && quizQuestions.length > 0;
+    const sessionPoints = calculateSessionPoints(durationSeconds, isPerfectQuiz);
 
     const sessionId = Math.random().toString(36).substr(2, 9);
     const newSession: ReadingSession = {
@@ -509,6 +576,33 @@ export default function App() {
     setPendingSession(null);
     setQuizQuestions([]);
     setActiveTab('dashboard');
+  };
+
+  const handleResetLibrary = async () => {
+    if (!session) return;
+    const { error: booksError } = await supabase.from('books').delete().eq('user_id', session.user.id);
+    const { error: sessionsError } = await supabase.from('sessions').delete().eq('user_id', session.user.id);
+    if (booksError || sessionsError) {
+      console.error('Reset failed:', booksError || sessionsError);
+      return;
+    }
+
+    const resetStats: UserStats = {
+      ...INITIAL_STATS,
+      profile: {
+        ...INITIAL_STATS.profile!,
+        name: stats.profile?.name || INITIAL_STATS.profile!.name,
+        avatar: stats.profile?.avatar || INITIAL_STATS.profile!.avatar,
+        bio: stats.profile?.bio || INITIAL_STATS.profile!.bio,
+        joinedAt: stats.profile?.joinedAt || Date.now(),
+        isAdmin: stats.profile?.isAdmin || false
+      }
+    };
+
+    setBooks([]);
+    setSessions([]);
+    setStats(resetStats);
+    setActiveBookId(undefined);
   };
 
   const tabs = [
@@ -591,11 +685,11 @@ export default function App() {
             <div className="hidden sm:flex items-center gap-4">
               <div className="text-right">
                  <div className="text-[10px] uppercase tracking-widest font-bold text-brand-muted leading-none mb-1">Rank</div>
-                 <div className="text-lg font-light serif text-brand-accent tabular-nums uppercase">Silver IV</div>
+                 <div className="text-lg font-light serif text-brand-accent tabular-nums uppercase">{getRankFromPoints(stats.points || 0)}</div>
               </div>
               <div className="h-10 w-[1px] bg-brand-border" />
               <div className="w-10 h-10 rounded-full bg-brand-paper border border-brand-border flex items-center justify-center overflow-hidden">
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Olufunmi&backgroundColor=14161c`} alt="avatar" />
+                  <img src={stats.profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=Archivist&backgroundColor=14161c`} alt="avatar" />
               </div>
             </div>
           )}
@@ -627,7 +721,7 @@ export default function App() {
                   onComplete={(score) => {
                     if (pendingSession) finalizeSession(pendingSession.duration, pendingSession.pages, score);
                   }}
-                  potentialPoints={Math.floor((pendingSession?.duration || 0) / 60) * 10}
+                  potentialPoints={calculateBaseSessionPoints(pendingSession?.duration || 0)}
                />
             </motion.div>
           ) : (
@@ -651,6 +745,20 @@ export default function App() {
                 <SearchPortal 
                   onAddBook={(book) => {
                     setBooks(prev => [...prev, book]);
+                    if (session) {
+                      supabase.from('books').insert({
+                        id: book.id,
+                        user_id: session.user.id,
+                        title: book.title,
+                        author: book.author,
+                        total_pages: book.totalPages,
+                        current_page: book.currentPage,
+                        status: book.status,
+                        cover_url: book.coverUrl,
+                        genre: book.genre,
+                        chapters: book.chapters
+                      }).then();
+                    }
                     setActiveTab('library');
                   }} 
                   existingBooks={books} 
@@ -705,9 +813,31 @@ export default function App() {
               )}
               {activeTab === 'admin' && (
                 <AdminPortal 
-                  onAddBook={(book) => setBooks(prev => [...prev, book])}
+                  onAddBook={(book) => {
+                    setBooks(prev => [...prev, book]);
+                    if (session) {
+                      supabase.from('books').insert({
+                        id: book.id,
+                        user_id: session.user.id,
+                        title: book.title,
+                        author: book.author,
+                        total_pages: book.totalPages,
+                        current_page: book.currentPage,
+                        status: book.status,
+                        cover_url: book.coverUrl,
+                        genre: book.genre,
+                        chapters: book.chapters
+                      }).then();
+                    }
+                  }}
                   existingBooks={books}
-                  onDeleteBook={(id) => setBooks(prev => prev.filter(b => b.id !== id))}
+                  onDeleteBook={(id) => {
+                    setBooks(prev => prev.filter(b => b.id !== id));
+                    if (session) {
+                      supabase.from('books').delete().eq('id', id).then();
+                    }
+                  }}
+                  onResetLibrary={handleResetLibrary}
                 />
               )}
             </motion.div>
@@ -745,6 +875,10 @@ export default function App() {
                 ? { ...b, chapters: [...(b.chapters || []), nextChapter] } 
                 : b
               ));
+              const updatedChapters = [...(activeBook.chapters || []), nextChapter];
+              await supabase.from('books').update({
+                chapters: updatedChapters
+              }).eq('id', activeBook.id);
             }
           }}
         />
