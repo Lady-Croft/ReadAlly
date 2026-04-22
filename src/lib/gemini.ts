@@ -1,10 +1,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+let aiClient: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing VITE_GEMINI_API_KEY. Set it in .env and restart the dev server.");
+  }
+
+  if (!aiClient) {
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+
+  return aiClient;
+};
 
 export async function getBookInsight(title: string, author: string) {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Provide a very brief (2-3 sentences), inspiring summary or mood description for the book "${title}" by ${author}. Focus on why it's worth reading.`,
       config: {
@@ -20,7 +33,7 @@ export async function getBookInsight(title: string, author: string) {
 
 export async function generateQuiz(title: string, author: string) {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate a 3-question multiple-choice quiz for the book "${title}" by ${author}. The questions should be about general knowledge of the book's plot or themes that a reader would likely know. Provide exactly 4 options for each question.`,
       config: {
@@ -60,7 +73,7 @@ export async function generateQuiz(title: string, author: string) {
 
 export async function generateVisualContext(title: string, author: string, sceneDescription: string) {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Based on the book "${title}" by ${author}, provide a detailed visual description for the following scene or section: "${sceneDescription}". 
       Describe the lighting, colors, atmosphere, and key details as if you were directing a film. 
@@ -78,7 +91,7 @@ export async function generateVisualContext(title: string, author: string, scene
 
 export async function searchBooks(query: string) {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Find 5 real books related to the search query: "${query}". For each book, provide: title, author, totalPages (estimated), a short description, and a genre. Ensure the books are real and highly relevant.`,
       config: {
@@ -118,7 +131,7 @@ export async function searchBooks(query: string) {
 
 export async function generateBookChapters(title: string, author: string) {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate 3 substantial chapters for the book "${title}" by ${author}. 
       Each chapter should have a title and 3-4 paragraphs of high-fidelity text matching the author's style. 
@@ -156,7 +169,7 @@ export async function generateBookChapters(title: string, author: string) {
 
 export async function generateNextChapter(title: string, author: string, lastChapterTitle: string) {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Continue the book "${title}" by ${author}. The last chapter was "${lastChapterTitle}". 
       Write the next chapter (Title and 4-5 paragraphs). Match the style perfectly.`,
